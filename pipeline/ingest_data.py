@@ -4,9 +4,10 @@
 from sqlalchemy import create_engine
 import pandas as pd
 from tqdm.auto import tqdm
+import click
 
-
-dtype = {
+# Keep your strict Yellow Taxi schema here
+YELLOW_TAXI_DTYPES = {
     "VendorID": "Int64",
     "passenger_count": "Int64",
     "trip_distance": "float64",
@@ -25,40 +26,57 @@ dtype = {
     "congestion_surcharge": "float64",
 }
 
-parse_dates = ["tpep_pickup_datetime", "tpep_dropoff_datetime"]
+YELLOW_TAXI_PARSE_DATES = ["tpep_pickup_datetime", "tpep_dropoff_datetime"]
 
 
-def run():
-    pg_user = "root"
-    pg_pass = "root"
-    pg_host = "localhost"
-    pg_port = 5432
-    pg_db = "ny_taxi"
-
-    year = 2021
-    month = 1
-
-    target_table = "yellow_taxi_data"
-
-    chunksize = 100000
-
-    prefix = "https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow"
-    url = f"{prefix}/yellow_tripdata_{year}-{month:02d}.csv.gz"
+@click.command()
+@click.option("--pg-user", default="root")
+@click.option("--pg-pass", default="root")
+@click.option("--pg-host", default="localhost")
+@click.option("--pg-port", default=5432, type=int)
+@click.option("--pg-db", default="ny_taxi")
+@click.option("--target-table", required=True)
+@click.option("--url", required=True)
+@click.option("--chunksize", default=100000, type=int)
+def run(pg_user, pg_pass, pg_host, pg_port, pg_db, target_table, url, chunksize):
     engine = create_engine(
         f"postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}"
     )
 
+    # --- LOGIC TO SELECT DTYPES ---
+    # We only apply the strict types if we are targeting the yellow taxi table
+    if target_table == "yellow_taxi_data":
+        print("Applying strict schema for Yellow Taxi data...")
+        specific_dtypes = YELLOW_TAXI_DTYPES
+        specific_parse_dates = YELLOW_TAXI_PARSE_DATES
+    else:
+        print(
+            f"Generic table '{target_table}' detected. Using Pandas auto-inference..."
+        )
+        specific_dtypes = None
+        specific_parse_dates = None
+    # ------------------------------
+
     df_iter = pd.read_csv(
-        url, dtype=dtype, parse_dates=parse_dates, iterator=True, chunksize=chunksize
+        url,
+        dtype=specific_dtypes,
+        parse_dates=specific_parse_dates,
+        iterator=True,
+        chunksize=chunksize,
+        low_memory=False,
     )
 
     first = True
+
     for df_chunk in tqdm(df_iter):
         if first:
+            # Create the table schema
             df_chunk.head(0).to_sql(name=target_table, con=engine, if_exists="replace")
             first = False
 
         df_chunk.to_sql(name=target_table, con=engine, if_exists="append")
+
+    print(f"Finished ingesting data into table: {target_table}")
 
 
 if __name__ == "__main__":
