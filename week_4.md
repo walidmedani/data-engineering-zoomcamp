@@ -5,7 +5,7 @@ This repository contains the dbt models and SQL queries developed for the Module
 ---
 
 ### Question 1: What is the behavior of `dbt build` when a model fails?
-> **Answer:** It will run all models, but if a model fails, its downstream dependencies will be skipped.
+> **Answer:** int_trips_unioned only
 
 ### Question 2: What happens when you provide a variable via the command line like `dbt run --vars '{"is_test_run": false}'`?
 > **Answer:** dbt fails the test with non-zero exit code.
