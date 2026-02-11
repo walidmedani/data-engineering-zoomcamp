@@ -4,15 +4,32 @@ This repository contains the dbt models and SQL queries developed for the Module
 
 ---
 
-### Question 1: What is the behavior of `dbt build` when a model fails?
+### Question 1: If you run dbt run --select int_trips_unioned, what models will be built?
 > **Answer:** int_trips_unioned only
+```sql
+models/
+├── staging/
+│   ├── stg_green_tripdata.sql
+│   └── stg_yellow_tripdata.sql
+└── intermediate/
+    └── int_trips_unioned.sql (depends on stg_green_tripdata & stg_yellow_tripdata)
+```
 
-### Question 2: What happens when you provide a variable via the command line like `dbt run --vars '{"is_test_run": false}'`?
+### Question 2: You've configured a generic test like this in your schema.yml:
+```sql
+columns:
+  - name: payment_type
+    data_tests:
+      - accepted_values:
+          arguments:
+            values: [1, 2, 3, 4, 5]
+            quote: false
+```
+Your model fct_trips has been running successfully for months. A new value 6 now appears in the source data. What happens when you run dbt test --select fct_trips?
 > **Answer:** dbt fails the test with non-zero exit code.
 
-### Question 3: Total Record Count
-> **Query:** Verify the total number of records in the consolidated fact table.
-> > **Answer:** 12,184
+### Question 3: After running your dbt project, query the fct_monthly_zone_revenue model. What is the count of records in the fct_monthly_zone_revenue model?
+> **Answer:** 12,184
 
 ```sql
 SELECT 
@@ -20,9 +37,8 @@ SELECT
 FROM {{ ref('fct_monthly_zone_revenue') }};
 ```
 
-### Question 4: Highest Revenue Zone (Green Taxis 2020)
-> **Query:** Identify the zone with the highest total revenue for Green taxis in the year 2020.
-> > **Answer:** East Harlem North
+### Question 4: Using the fct_monthly_zone_revenue table, find the pickup zone with the highest total revenue (revenue_monthly_total_amount) for Green taxi trips in 2020. Which zone had the highest revenue?
+> **Answer:** East Harlem North
 ```sql
 WITH monthly_revenue AS (
     SELECT 
@@ -43,9 +59,8 @@ LIMIT 1;
 ```
 
 
-### Question 5: Trip Volume (Green Taxis Oct 2019)
-> **Query:** Total number of trips for Green taxis in October 2019.
-> > **Answer:** 384,624
+### Question 5: Using the fct_monthly_zone_revenue table, what is the total number of trips (total_monthly_trips) for Green taxis in October 2019?
+>  **Answer:** 384,624
 ```sql
 SELECT 
     SUM(total_monthly_trips) AS total_trips
@@ -56,9 +71,8 @@ WHERE
     AND EXTRACT(YEAR FROM revenue_month) = 2019;
 ```
 
-### Question 6: FHV Staging Model
-> **Requirements:** Create a staging model for 2019 FHV data, ensuring dispatching_base_num is not null and counting total records.
->> **Answer:** 43,244,693
+### Question 6: Create a staging model for 2019 FHV data, ensuring dispatching_base_num is not null and counting total records. What is the count of records in stg_fhv_tripdata?
+> **Answer:** 43,244,693
 ```sql
 {{ config(materialized='table') }}
 
